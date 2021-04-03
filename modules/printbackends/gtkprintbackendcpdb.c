@@ -1,19 +1,16 @@
-
-
 #include "gtkprintbackendcpdb.h"
 #include "config.h"
+#include "gtkcpdbutils.h"
 #include "gtkintl.h"
-#include "gtkprintercups.h"
+#include "gtkprintercpdb.h"
 #include "gtkprinterprivate.h"
 #include <cpdb-libs-frontend.h>
 #include <glib/gi18n-lib.h>
 #include <gtk/gtk.h>
-#include "gtkcpdbutils.h"
 
 #ifdef HAVE_COLORD
 #include <colord.h>
 #endif
-
 
 #define AVAHI_IF_UNSPEC -1
 #define AVAHI_PROTO_INET 0
@@ -25,7 +22,6 @@
 #define AVAHI_SERVICE_BROWSER_IFACE "org.freedesktop.Avahi.ServiceBrowser"
 #define AVAHI_SERVICE_RESOLVER_IFACE "org.freedesktop.Avahi.ServiceResolver"
 
-
 #define UNSIGNED_FLOAT_REGEX "([0-9]+([.,][0-9]*)?|[.,][0-9]+)([e][+-]?[0-9]+)?"
 #define SIGNED_FLOAT_REGEX "[+-]?" UNSIGNED_FLOAT_REGEX
 #define SIGNED_INTEGER_REGEX "[+-]?([0-9]+)"
@@ -34,14 +30,18 @@
 /* define this to see warnings about ignored ppd options */
 #undef PRINT_IGNORED_OPTIONS
 
-#define _CPDB_MAP_ATTR_INT(attr, v, a) {if (!g_ascii_strcasecmp (attr->name, (a))) v = attr->values[0].integer;}
-#define _CPDB_MAP_ATTR_STR(attr, v, a) {if (!g_ascii_strcasecmp (attr->name, (a))) v = attr->values[0].string.text;}
-
-
+#define _CPDB_MAP_ATTR_INT(attr, v, a)         \
+  {                                            \
+    if (!g_ascii_strcasecmp (attr->name, (a))) \
+      v = attr->values[0].integer;             \
+  }
+#define _CPDB_MAP_ATTR_STR(attr, v, a)         \
+  {                                            \
+    if (!g_ascii_strcasecmp (attr->name, (a))) \
+      v = attr->values[0].string.text;         \
+  }
 
 G_DEFINE_DYNAMIC_TYPE (GtkPrintBackendCpdb, gtk_print_backend_cpdb, GTK_TYPE_PRINT_BACKEND)
-
-static void gtk_printer_cpdb_init (GtkPrinterCpdb *printer);
 
 void
 g_io_module_load (GIOModule *module)
@@ -93,6 +93,15 @@ typedef struct
   gpointer callback_data;
 
 } GtkPrintCpdbDispatchWatch;
+
+typedef struct
+{
+  GtkPrintJobCompleteFunc callback;
+  GtkPrintJob *job;
+  gpointer user_data;
+  GDestroyNotify dnotify;
+  http_t *http;
+} CpdbPrintStreamData;
 
 GtkPrintBackend *
 gtk_print_backend_cpdb_new (void)
@@ -248,12 +257,12 @@ request_password (gpointer data)
           else
             prompt = g_strdup (_ ("Authentication is required to get attributes of a printer"));
           break;
-        case CUPS_GET_DEFAULT:
-          prompt = g_strdup_printf (_ ("Authentication is required to get default printer of %s"), hostname);
-          break;
-        case CUPS_GET_PRINTERS:
-          prompt = g_strdup_printf (_ ("Authentication is required to get printers from %s"), hostname);
-          break;
+        // case CPDB_GET_DEFAULT:
+        //   prompt = g_strdup_printf (_ ("Authentication is required to get default printer of %s"), hostname);
+        //   break;
+        // case CPDB_GET_PRINTERS:
+        //   prompt = g_strdup_printf (_ ("Authentication is required to get printers from %s"), hostname);
+        //   break;
         default:
           /* work around gcc warning about 0 not being a value for this enum */
           if (ippGetOperation (dispatch->request->ipp_request) == 0)
@@ -633,7 +642,6 @@ gtk_cpdb_result_free (GtkCpdbResult *result)
   g_free (result);
 }
 
-
 #define _GTK_CPDB_MAX_ATTEMPTS 10
 
 static void
@@ -825,9 +833,9 @@ add_cpdb_options (const char *key,
                           custom_value = TRUE;
                           break;
 
-                          // #if (CUPS_VERSION_MAJOR >= 3) ||                            \
-                          //     (CUPS_VERSION_MAJOR == 2 && CUPS_VERSION_MINOR >= 3) || \
-                          //     (CUPS_VERSION_MAJOR == 2 && CUPS_VERSION_MINOR == 2 && CUPS_VERSION_PATCH >= 12)
+                          // #if (CPDB_VERSION_MAJOR >= 3) ||                            \
+                          //     (CPDB_VERSION_MAJOR == 2 && CPDB_VERSION_MINOR >= 3) || \
+                          //     (CPDB_VERSION_MAJOR == 2 && CPDB_VERSION_MINOR == 2 && CPDB_VERSION_PATCH >= 12)
                           //                         case PPD_CUSTOM_UNKNOWN:
                           // #endif
 
@@ -854,7 +862,6 @@ add_cpdb_options (const char *key,
     gtk_cpdb_request_encode_option (request, key, value);
 }
 
-
 typedef struct
 {
   GtkPrintBackendCpdb *print_backend;
@@ -862,6 +869,17 @@ typedef struct
   int job_id;
   int counter;
 } CpdbJobPollData;
+
+static void
+cpdb_request_job_info (CpdbJobPollData *data);
+
+static void
+job_object_died (gpointer user_data,
+                 GObject *where_the_object_was)
+{
+  CpdbJobPollData *data = user_data;
+  data->job = NULL;
+}
 
 static void
 cpdb_job_poll_data_free (CpdbJobPollData *data)
@@ -977,13 +995,6 @@ cpdb_request_job_info (CpdbJobPollData *data)
                         data,
                         NULL);
 }
-static void
-job_object_died (gpointer user_data,
-                 GObject *where_the_object_was)
-{
-  CpdbJobPollData *data = user_data;
-  data->job = NULL;
-}
 
 static void
 cpdb_begin_polling_info (GtkPrintBackendCpdb *print_backend,
@@ -1003,7 +1014,6 @@ cpdb_begin_polling_info (GtkPrintBackendCpdb *print_backend,
 
   cpdb_request_job_info (data);
 }
-
 
 static void
 cpdb_print_cb (GtkPrintBackendCpdb *print_backend,
@@ -1072,7 +1082,7 @@ gtk_print_backend_cpdb_print_stream (GtkPrintBackend *print_backend,
   cpdb_printer = GTK_PRINTER_CPDB (gtk_print_job_get_printer (job));
 
   settings = gtk_print_job_get_settings (job);
-  
+
   if (cpdb_printer->avahi_browsed)
     {
       http = httpConnect2 (cpdb_printer->hostname, cpdb_printer->port,
@@ -1233,8 +1243,8 @@ get_gtk_printer_from_printer_obj (PrinterObj *p)
 
   gtk_printer_set_has_details (printer, TRUE);
   gtk_printer_set_is_active (printer, TRUE);
-  // // Given GCP is going to be deprecated, the CUPS default printer wil be overall default.
-  // if (strcmp(p->backend_name, "CUPS") == 0 &&
+  // // Given GCP is going to be deprecated, the CPDB default printer wil be overall default.
+  // if (strcmp(p->backend_name, "CPDB") == 0 &&
   //     strcmp(get_default_printer(frontendObj, p->backend_name), p->name) == 0)
   //   {
   //     gtk_printer_set_is_default (printer, TRUE);

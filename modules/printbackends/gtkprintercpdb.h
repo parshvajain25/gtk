@@ -97,6 +97,19 @@ struct _GtkPrinterCpdbClass
   GtkPrinterClass parent_class;
 };
 
+static void gtk_printer_cpdb_init (GtkPrinterCpdb *printer);
+static void gtk_printer_cpdb_class_init (GtkPrinterCpdbClass *class);
+static void gtk_printer_cpdb_finalize (GObject *object);
+
+static void gtk_printer_cpdb_set_property (GObject *object,
+                                           guint prop_id,
+                                           const GValue *value,
+                                           GParamSpec *pspec);
+static void gtk_printer_cpdb_get_property (GObject *object,
+                                           guint prop_id,
+                                           GValue *value,
+                                           GParamSpec *pspec);
+
 GType gtk_printer_cpdb_get_type (void) G_GNUC_CONST;
 void gtk_printer_cpdb_register_type (GTypeModule *module);
 

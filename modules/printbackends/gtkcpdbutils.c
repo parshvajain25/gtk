@@ -49,19 +49,6 @@ const char *
 gtk_cpdb_request_ipp_get_string (GtkCpdbRequest *request,
                                  ipp_tag_t tag,
                                  const char *name);
-struct _GtkCpdbResult
-{
-  char *error_msg;
-  ipp_t *ipp_response;
-  GtkCpdbErrorType error_type;
-
-  /* some error types like HTTP_ERROR have a status and a code */
-  int error_status;
-  int error_code;
-
-  guint is_error : 1;
-  guint is_ipp_response : 1;
-};
 
 #define _GTK_CPDB_MAX_ATTEMPTS 10
 #define _GTK_CPDB_MAX_CHUNK_SIZE 8192
@@ -115,7 +102,7 @@ gtk_cpdb_request_new_with_username (http_t *connection,
                                     const char *username)
 {
   GtkCpdbRequest *request;
-  cpdb_lang_t *language;
+  cups_lang_t *language; // will be using cups for now
 
   request = g_new0 (GtkCpdbRequest, 1);
   request->result = g_new0 (GtkCpdbResult, 1);
@@ -191,7 +178,7 @@ gtk_cpdb_request_new_with_username (http_t *connection,
   request->auth_info = NULL;
   request->need_auth_info = FALSE;
 
-  cpdbLangFree (language);
+  cupsLangFree (language);
 
   return request;
 }

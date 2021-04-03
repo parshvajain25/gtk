@@ -17,21 +17,8 @@ enum
   PROP_PROFILE_TITLE
 };
 
-static void gtk_printer_cpdb_init (GtkPrinterCpdb *printer);
-static void gtk_printer_cpdb_class_init (GtkPrinterCpdbClass *class);
-static void gtk_printer_cpdb_finalize (GObject *object);
-
 static GtkPrinterClass *gtk_printer_cpdb_parent_class;
 static GType gtk_printer_cpdb_type = 0;
-
-static void gtk_printer_cpdb_set_property (GObject *object,
-                                           guint prop_id,
-                                           const GValue *value,
-                                           GParamSpec *pspec);
-static void gtk_printer_cpdb_get_property (GObject *object,
-                                           guint prop_id,
-                                           GValue *value,
-                                           GParamSpec *pspec);
 
 void
 gtk_printer_cpdb_register_type (GTypeModule *module)

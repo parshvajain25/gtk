@@ -57,6 +57,20 @@ typedef enum
   GTK_CPDB_PASSWORD_NOT_VALID
 } GtkCpdbPasswordState;
 
+typedef struct _GtkCpdbResult
+{
+  char *error_msg;
+  ipp_t *ipp_response;
+  GtkCpdbErrorType error_type;
+
+  /* some error types like HTTP_ERROR have a status and a code */
+  int error_status;
+  int error_code;
+
+  guint is_error : 1;
+  guint is_ipp_response : 1;
+} GtkCpdbResult;
+
 typedef struct _GtkCpdbRequest
 {
   GtkCpdbRequestType type;
@@ -69,6 +83,7 @@ typedef struct _GtkCpdbRequest
   char *resource;
   GIOChannel *data_io;
   int attempts;
+  GtkCpdbResult *result;
 
   int state;
   GtkCpdbPollState poll_state;
@@ -95,19 +110,7 @@ typedef struct _GtkCpdbConnectionTest
   int socket;
 } GtkCpdbConnectionTest;
 
-typedef struct _GtkCpdbResult
-{
-  char *error_msg;
-  ipp_t *ipp_response;
-  GtkCpdbErrorType error_type;
 
-  /* some error types like HTTP_ERROR have a status and a code */
-  int error_status;
-  int error_code;
-
-  guint is_error : 1;
-  guint is_ipp_response : 1;
-} GtkCpdbResult;
 
 #define GTK_CPDB_REQUEST_START 0
 #define GTK_CPDB_REQUEST_DONE 500
@@ -162,9 +165,7 @@ void gtk_cpdb_request_ipp_add_strings (GtkCpdbRequest *request,
                                        int num_values,
                                        const char *charset,
                                        const char *const *values);
-const char *gtk_cpdb_request_ipp_get_string (GtkCpdbRequest *request,
-                                             ipp_tag_t tag,
-                                             const char *name);
+
 gboolean gtk_cpdb_request_read_write (GtkCpdbRequest *request,
                                       gboolean connect_only);
 GtkCpdbPollState gtk_cpdb_request_get_poll_state (GtkCpdbRequest *request);

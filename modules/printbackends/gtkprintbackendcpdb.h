@@ -23,13 +23,12 @@ G_BEGIN_DECLS
 #define GTK_CPDB_REQUEST_DONE 500
 typedef struct _GtkPrinterPrivate GtkPrinterPrivate;
 
-
-typedef struct _GtkPrintBackendCpdbClass
+typedef struct
 {
   GtkPrintBackendClass parent_class;
 } GtkPrintBackendCpdbClass;
 
-struct _GtkPrintBackendCpdb
+typedef struct
 {
   GtkPrintBackend parent_instance;
   guint list_printers_pending : 1;
@@ -60,9 +59,7 @@ struct _GtkPrintBackendCpdb
   GCancellable *secrets_service_cancellable;
 } GtkPrintBackendCpdb;
 
-
-
-typedef struct _CpdbOptionData
+typedef struct
 {
   GtkCpdbRequest *request;
   GtkPageSetup *page_setup;
@@ -89,6 +86,8 @@ static void add_cpdb_options (const char *key,
 static void cpdb_get_printer_list (GtkPrintBackend *backend);
 
 
+static void
+cpdb_dispatch_add_poll (GSource *source);
 
 static void cpdb_printer_get_settings_from_options (GtkPrinter *printer,
                                                     GtkPrinterOptionSet *options,
