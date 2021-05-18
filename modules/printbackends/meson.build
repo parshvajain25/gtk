@@ -10,8 +10,26 @@ printbackends_args = [
   '-D_GLIB_EXTERN=@0@'.format(visibility_define),
 ] + common_cflags
 
+cpdb_frontend_dep = cc.find_library('cpdb-libs-frontend', version : '>=1.0', required: get_option('print-cpdb'))
+cpdb_common_dep = cc.find_library('cpdb-libs-common', version: '>=1.0', required: get_option('print-cpdb'))
 cups_dep = dependency('cups', version : '>=2.0', required: get_option('print-cups'))
-if cups_dep.found()
+
+# Use common print dialog backend if present. 
+# If not, use cups if present. 
+# If not, use lpr.
+if cpdb_frontend_dep.found() and cpdb_common_dep.found()
+  print_backends += 'cpdb'
+  shared_module('printbackend-cpdb',
+    sources: ['gtkprintbackendcpdb.c',
+              'gtkprintercpdb.c',
+              'gtkcpdbutils.c',
+              ],
+    c_args: printbackends_args,
+    dependencies: [libgtk_dep, cpdb_frontend_dep, cpdb_common_dep],
+    install_dir: printbackends_install_dir,
+    install: true,
+  )
+elif cups_dep.found()
   print_backends += 'cups'
   shared_module('printbackend-cups',
     sources: [
@@ -39,7 +57,8 @@ endif
 
 rest_dep = dependency('rest-0.7', required : get_option('print-cloudprint'))
 json_glib_dep = dependency('json-glib-1.0', required : get_option('print-cloudprint'))
-if rest_dep.found() and json_glib_dep.found()
+# If cpdb is already installed, it will take care of google cloud print too.
+if rest_dep.found() and json_glib_dep.found() and not (cpdb_frontend_dep.found() and cpdb_common_dep.found())
   print_backends += 'cloudprint'
   shared_module('printbackend-cloudprint',
     sources: [
